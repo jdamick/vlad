@@ -220,7 +220,7 @@ class Rake::RemoteTask < Rake::Task
     trace = [ssh_cmd, ssh_flags, target_host, "'#{command}'"].flatten.join(' ')
     warn trace if $TRACE
 
-    pid, inn, out, err = popen4(*cmd)
+    pid, inn, out, err = create_process(cmd)
 
     inn.sync   = true
     streams    = [out, err]
@@ -232,7 +232,7 @@ class Rake::RemoteTask < Rake::Task
     # Handle process termination ourselves
     status = nil
     Thread.start do
-      status = Process.waitpid2(pid).last
+      status = monitor_process(pid)
     end
 
     until streams.empty? do
@@ -270,6 +270,30 @@ class Rake::RemoteTask < Rake::Task
     inn.close rescue nil
     out.close rescue nil
     err.close rescue nil
+  end
+  
+  def create_process(cmd)
+    if RUBY_PLATFORM =~ /java/
+      proc = java.lang.ProcessBuilder.new(cmd).start
+      inn = proc.getOutputStream().to_io
+      out = proc.getInputStream().to_io
+      err = proc.getErrorStream().to_io
+      [proc, inn, out, err]
+    else
+      pid, inn, out, err = popen4(*cmd)
+      [pid, inn, out, err]
+    end
+  end
+  
+  def monitor_process(pid)
+    status = nil
+    if RUBY_PLATFORM =~ /java/
+      pid.waitFor() == 0 ? status_success = true : status_success = false
+      status = OpenStruct.new(:success? => status_success, :exitstatus => pid.exitValue)
+    else
+      status = Process.waitpid2(pid).last
+    end
+    status
   end
 
   ##

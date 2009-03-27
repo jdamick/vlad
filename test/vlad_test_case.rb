@@ -35,8 +35,12 @@ class Rake::RemoteTask
     @commands << command
     self.action ? self.action[command.join(' ')] : true
   end
-
-  def popen4 *command
+  
+  def monitor_process(pid)
+    status = Process.waitpid2(pid).last
+  end
+  
+  def create_process command
     @commands << command
 
     @input = StringIO.new

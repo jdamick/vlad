@@ -274,10 +274,11 @@ class Rake::RemoteTask < Rake::Task
   
   def create_process(cmd)
     if RUBY_PLATFORM =~ /java/
-      proc = java.lang.ProcessBuilder.new(cmd).start
+      proc_builder = java.lang.ProcessBuilder.new(cmd)
+      proc_builder.redirectErrorStream()
+      proc = proc_builder.start
       inn = proc.getOutputStream().to_io
-      out = proc.getInputStream().to_io
-      err = proc.getErrorStream().to_io
+      err = out = proc.getInputStream().to_io
       [proc, inn, out, err]
     else
       pid, inn, out, err = popen4(*cmd)
